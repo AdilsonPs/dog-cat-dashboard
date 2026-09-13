@@ -8,17 +8,36 @@ import pandas as pd
 import numpy as np
 import kagglehub
 from pathlib import Path
+import base64
 
+# Configuração da página
 st.set_page_config(page_title="Dog & Cat Data — Dashboard", layout="wide")
 
-
+# ---------------------------------------------------------------------------
+# Desativação do Dark Mode via CSS (Remove opção do menu e força Light Mode)
+# ---------------------------------------------------------------------------
+st.markdown(
+    """
+    <style>
+    /* Força cores de texto e fundo no padrão Light Mode */
+    :root {
+        color-scheme: light !important;
+    }
+    
+    /* Esconde a opção de configurações de tema no menu hambúrguer */
+    div[data-testid="stStatusWidget"] {visibility: hidden;}
+    [data-testid="stHeader"] button[title="View settings"],
+    li[data-aria-label="Settings"] {
+        display: none !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 # ---------------------------------------------------------------------------
 # Imagem de capa (fundo da página)
 # ---------------------------------------------------------------------------
-
-import base64
-
 CAPA_PATH = "assets/capa.png"
 
 def set_background(image_path: str):
@@ -36,8 +55,9 @@ def set_background(image_path: str):
             background-position: center;
             background-repeat: no-repeat;
             background-attachment: fixed;
+            color: #31333F !important; /* Força cor do texto para escuro */
         }}
-        /* Fundo semi-transparente atrás do conteúdo, pra manter o texto legível */
+        /* Fundo semi-transparente atrás do conteúdo */
         .stApp > header {{
             background-color: transparent;
         }}
@@ -45,6 +65,7 @@ def set_background(image_path: str):
             background-color: rgba(255, 255, 255, 0.85);
             border-radius: 12px;
             padding: 2rem;
+            color: #31333F !important;
         }}
         </style>
         """,
@@ -54,13 +75,12 @@ def set_background(image_path: str):
 set_background(CAPA_PATH)
 
 # ---------------------------------------------------------------------------
-# Carregamento dos dados (com cache para não baixar/ler de novo a cada clique)
+# Carregamento dos dados (com cache)
 # ---------------------------------------------------------------------------
 @st.cache_data
 def load_data():
     dataset_path = Path(kagglehub.dataset_download("newbie2016/dog-and-cat-data"))
 
-    # Procura o primeiro arquivo tabular (csv ou excel) dentro da pasta baixada
     candidates = list(dataset_path.rglob("*.csv")) + \
                  list(dataset_path.rglob("*.xlsx")) + \
                  list(dataset_path.rglob("*.xls"))
@@ -76,7 +96,6 @@ def load_data():
 
     return df, file_path
 
-
 st.title("🐶🐱 Dashboard — Dog & Cat Data")
 
 with st.spinner("Carregando dados..."):
@@ -89,7 +108,7 @@ if df is None:
 st.caption(f"Fonte: `{source_path.name}` — {df.shape[0]} linhas × {df.shape[1]} colunas")
 
 # ---------------------------------------------------------------------------
-# Sidebar — filtros dinâmicos baseados no tipo de cada coluna
+# Sidebar — filtros dinâmicos
 # ---------------------------------------------------------------------------
 st.sidebar.header("Filtros")
 
@@ -110,11 +129,11 @@ def set_sidebar_background(image_path: str):
             background-position: center;
             background-repeat: no-repeat;
         }}
-        /* Painel semi-transparente atrás dos filtros, pra manter o texto legível */
         [data-testid="stSidebar"] > div:first-child {{
             background-color: rgba(255, 255, 255, 0.85);
             padding: 1rem;
             border-radius: 8px;
+            color: #31333F !important;
         }}
         </style>
         """,
@@ -123,15 +142,13 @@ def set_sidebar_background(image_path: str):
 
 set_sidebar_background(SIDEBAR_IMAGE_PATH)
 
-
 filtered_df = df.copy()
 
 numeric_cols = df.select_dtypes(include=np.number).columns.tolist()
 categorical_cols = df.select_dtypes(include=["object", "category", "bool"]).columns.tolist()
 
-MAX_FILTERS = 5 # limite total de filtros exibidos na sidebar
+MAX_FILTERS = 5 
 
-# Colunas categóricas elegíveis (mais de 1 e no máximo 50 valores únicos)
 eligible_categorical = [
     col for col in categorical_cols
     if 1 < df[col].dropna().nunique()
@@ -146,13 +163,12 @@ preferred_categorical = [
 remaining_categorical = [
     col for col in eligible_categorical if col not in preferred_categorical
 ]
-# Colunas numéricas elegíveis (com variação de valores)
+
 eligible_numeric = [
     col for col in numeric_cols
     if df[col].min() < df[col].max()
 ]
 
-# Intercala categóricas e numéricas até atingir o limite de MAX_FILTERS
 filter_cols = [("cat", col) for col in preferred_categorical]
 i = j = 0
 while len(filter_cols) < MAX_FILTERS and (i < len(remaining_categorical) or j < len(eligible_numeric)):
@@ -197,7 +213,7 @@ st.subheader("Dados filtrados")
 st.dataframe(filtered_df, use_container_width=True)
 
 # ---------------------------------------------------------------------------
-# Gráficos (apenas 2, simples)
+# Gráficos
 # ---------------------------------------------------------------------------
 st.subheader("Visualizações")
 
