@@ -11,9 +11,12 @@ from pathlib import Path
 
 st.set_page_config(page_title="Dog & Cat Data — Dashboard", layout="wide")
 
+
+
 # ---------------------------------------------------------------------------
 # Imagem de capa (fundo da página)
 # ---------------------------------------------------------------------------
+
 import base64
 
 CAPA_PATH = "assets/capa.png"
@@ -126,12 +129,22 @@ filtered_df = df.copy()
 numeric_cols = df.select_dtypes(include=np.number).columns.tolist()
 categorical_cols = df.select_dtypes(include=["object", "category", "bool"]).columns.tolist()
 
-MAX_FILTERS = 5  # limite total de filtros exibidos na sidebar
+MAX_FILTERS = 5 # limite total de filtros exibidos na sidebar
 
 # Colunas categóricas elegíveis (mais de 1 e no máximo 50 valores únicos)
 eligible_categorical = [
     col for col in categorical_cols
-    if 1 < df[col].dropna().nunique() <= 50
+    if 1 < df[col].dropna().nunique()
+    and (df[col].dropna().nunique() <= 50 or col.lower() in ("species", "breed", "breed_name"))
+]
+
+preferred_categorical = [
+    col for name in ("species", "breed_name", "breed")
+    for col in eligible_categorical
+    if col.lower() == name
+]
+remaining_categorical = [
+    col for col in eligible_categorical if col not in preferred_categorical
 ]
 # Colunas numéricas elegíveis (com variação de valores)
 eligible_numeric = [
@@ -140,11 +153,11 @@ eligible_numeric = [
 ]
 
 # Intercala categóricas e numéricas até atingir o limite de MAX_FILTERS
-filter_cols = []
+filter_cols = [("cat", col) for col in preferred_categorical]
 i = j = 0
-while len(filter_cols) < MAX_FILTERS and (i < len(eligible_categorical) or j < len(eligible_numeric)):
-    if i < len(eligible_categorical):
-        filter_cols.append(("cat", eligible_categorical[i]))
+while len(filter_cols) < MAX_FILTERS and (i < len(remaining_categorical) or j < len(eligible_numeric)):
+    if i < len(remaining_categorical):
+        filter_cols.append(("cat", remaining_categorical[i]))
         i += 1
     if len(filter_cols) < MAX_FILTERS and j < len(eligible_numeric):
         filter_cols.append(("num", eligible_numeric[j]))
@@ -152,7 +165,7 @@ while len(filter_cols) < MAX_FILTERS and (i < len(eligible_categorical) or j < l
 
 for kind, col in filter_cols:
     if kind == "cat":
-        unique_vals = df[col].dropna().unique().tolist()
+        unique_vals = filtered_df[col].dropna().unique().tolist()
         selected = st.sidebar.multiselect(f"{col}", sorted(map(str, unique_vals)))
         if selected:
             filtered_df = filtered_df[filtered_df[col].astype(str).isin(selected)]
